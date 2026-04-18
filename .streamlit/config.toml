@@ -5,3 +5,10 @@ gatherUsageStats = false
 headless = true
 fileWatcherType = "poll"
 runOnSave = false
+
+[theme]
+base = "dark"
+primaryColor = "#38bdf8"
+backgroundColor = "#020617"
+secondaryBackgroundColor = "#0f172a"
+textColor = "#e5e7eb"

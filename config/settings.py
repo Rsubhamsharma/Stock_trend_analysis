@@ -1,10 +1,15 @@
+import os
 from datetime import date
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 CACHE_DIR = DATA_DIR / "cache"
+
+load_dotenv(PROJECT_ROOT / ".env")
 
 DEFAULT_TICKER = "AAPL"
 DEFAULT_START_DATE = date(2020, 1, 1)
@@ -28,3 +33,12 @@ LSTM_EPOCHS = 12
 LSTM_BATCH_SIZE = 32
 LSTM_UNITS = 50
 LSTM_TIMEOUT_SECONDS = 240
+MODEL_CACHE_VERSION = "lstm-dependencies-fixed-v1"
+
+CONFIDENCE_HIGH_RMSE_PCT = 3.0
+CONFIDENCE_MEDIUM_RMSE_PCT = 7.0
+
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "")
+SEARCH_MIN_LENGTH = 2
+SEARCH_RESULT_LIMIT = 8
+SEARCH_DEFAULT_QUERY = "AAPL"

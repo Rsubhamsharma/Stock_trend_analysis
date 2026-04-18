@@ -7,6 +7,7 @@ from config.settings import CACHE_DIR
 
 
 TICKER_ALIASES = {
+    "APPL": "AAPL",
     "APPLE": "AAPL",
     "TESLA": "TSLA",
     "NVIDIA": "NVDA",

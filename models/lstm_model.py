@@ -37,7 +37,7 @@ def create_sequences(scaled_values: np.ndarray, sequence_length: int = LSTM_SEQU
 
 def build_lstm_model(sequence_length: int = LSTM_SEQUENCE_LENGTH):
     import tensorflow as tf
-    from tensorflow.keras.layers import Dense, Dropout, LSTMCell, RNN
+    from tensorflow.keras.layers import Dense, Dropout, Input, LSTM
     from tensorflow.keras.models import Sequential
 
     tf.config.threading.set_intra_op_parallelism_threads(1)
@@ -45,9 +45,10 @@ def build_lstm_model(sequence_length: int = LSTM_SEQUENCE_LENGTH):
 
     model = Sequential(
         [
-            RNN(LSTMCell(LSTM_UNITS), return_sequences=True, input_shape=(sequence_length, 1)),
+            Input(shape=(sequence_length, 1)),
+            LSTM(LSTM_UNITS, return_sequences=True),
             Dropout(0.2),
-            RNN(LSTMCell(LSTM_UNITS)),
+            LSTM(LSTM_UNITS),
             Dropout(0.2),
             Dense(1),
         ]
