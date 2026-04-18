@@ -1,0 +1,66 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+stock_dashboard/.venv/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.toml
+stock_dashboard/.streamlit/secrets.toml
+
+# Generated market data and local storage
+stock_dashboard/data/cache/*
+!stock_dashboard/data/cache/.gitkeep
+*.sqlite
+*.sqlite3
+*.db
+
+# Model artifacts and experiment outputs
+*.h5
+*.keras
+*.pkl
+*.joblib
+models/checkpoints/
+stock_dashboard/models/checkpoints/
+runs/
+mlruns/
+
+# Logs and runtime output
+*.log
+logs/
+*.tmp
+*.temp
+
+# Streamlit local runtime files
+.streamlit/secrets.toml
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
