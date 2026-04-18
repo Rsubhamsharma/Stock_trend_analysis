@@ -19,15 +19,21 @@ stock_dashboard/.venv/
 .env
 .env.*
 !.env.example
+*.env.local
 *.pem
 *.key
 *.crt
 *.p12
 *.pfx
 secrets.toml
+.streamlit/secrets.toml
+config/local_settings.py
+config/secrets.py
 stock_dashboard/.streamlit/secrets.toml
 
 # Generated market data and local storage
+data/cache/*
+!data/cache/.gitkeep
 stock_dashboard/data/cache/*
 !stock_dashboard/data/cache/.gitkeep
 *.sqlite
@@ -51,7 +57,7 @@ logs/
 *.temp
 
 # Streamlit local runtime files
-.streamlit/secrets.toml
+.streamlit/credentials.toml
 
 # OS and editor files
 .DS_Store
