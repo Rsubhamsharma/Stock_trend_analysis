@@ -320,8 +320,21 @@ def _render_decision_summary(summary: dict) -> None:
 def main() -> None:
     _inject_styles()
 
-    st.title("Stock Market Trend Analysis Dashboard")
-    st.caption("Chart-first historical analysis, technical indicators, model forecasts, and decision support.")
+    with st.container():
+        st.markdown(
+            """
+            <div style="padding: 18px 0 14px 0;">
+                <div style="font-size: 40px; line-height: 1.12; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">
+                    Stock Market Analytics
+                </div>
+                <div style="font-size: 16px; color: #94a3b8; max-width: 900px;">
+                    Analyze historical trends, technical indicators, and short-term forecasts in one unified dashboard.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    st.divider()
 
     with st.container():
         control_cols = st.columns([1.9, 0.75, 0.75])
