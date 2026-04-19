@@ -2,8 +2,9 @@ from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
-from config.settings import DEFAULT_FORECAST_HORIZON, DEFAULT_TICKER, MODEL_CACHE_VERSION, SEARCH_DEFAULT_QUERY, SEARCH_MIN_LENGTH
+from config.settings import DEFAULT_FORECAST_HORIZON, DEFAULT_TICKER, FINNHUB_API_KEY, MODEL_CACHE_VERSION, SEARCH_DEFAULT_QUERY, SEARCH_MIN_LENGTH
 from models.baseline_model import evaluate_baseline_model, forecast_baseline
 from models.lstm_model import evaluate_and_forecast_lstm
 from services.search_service import SymbolSearchError, search_symbols
@@ -32,6 +33,13 @@ QUICK_RANGES = {
     "Max": 3650,
 }
 
+PLOTLY_CHART_CONFIG = {
+    "scrollZoom": True,
+    "displayModeBar": True,
+    "displaylogo": False,
+    "modeBarButtonsToRemove": ["zoom2d", "select2d", "lasso2d"],
+}
+
 
 def _inject_styles() -> None:
     st.markdown(
@@ -41,8 +49,20 @@ def _inject_styles() -> None:
             background: #020617;
             color: #e5e7eb;
         }
+        #MainMenu,
+        footer,
+        header,
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"] {
+            visibility: hidden;
+            height: 0;
+        }
+        header[data-testid="stHeader"] {
+            display: none;
+        }
         .block-container {
-            padding-top: 1.4rem;
+            padding-top: 0.85rem;
             padding-bottom: 3rem;
             max-width: 1500px;
         }
@@ -65,6 +85,118 @@ def _inject_styles() -> None:
         .dashboard-subtitle {
             color: #94a3b8;
             margin-top: 0.2rem;
+        }
+        .nav-divider {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+            margin: 0.1rem 0 0.85rem 0;
+        }
+        .brand-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.62rem;
+        }
+        .brand-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #e0f2fe;
+            font-weight: 800;
+            font-size: 0.78rem;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(34, 197, 94, 0.62));
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.12);
+        }
+        .brand-name {
+            color: #f8fafc;
+            font-size: 1rem;
+            font-weight: 750;
+            letter-spacing: 0;
+        }
+        .nav-tools {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .tool-btn {
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.52);
+            border-radius: 999px;
+            padding: 0.36rem 0.68rem;
+            font-size: 0.78rem;
+            line-height: 1;
+        }
+        .tool-btn:hover {
+            border-color: rgba(56, 189, 248, 0.36);
+            color: #f8fafc;
+            background: rgba(30, 41, 59, 0.72);
+        }
+        .hero-shell {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background:
+                radial-gradient(circle at 8% 0%, rgba(56, 189, 248, 0.12), transparent 30%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.92));
+            box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
+            padding: 1.28rem 1.45rem 1.18rem 1.45rem;
+            margin: 0 0 0.9rem 0;
+        }
+        .hero-content {
+            max-width: 860px;
+        }
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(56, 189, 248, 0.24);
+            background: rgba(56, 189, 248, 0.075);
+            color: #7dd3fc;
+            border-radius: 999px;
+            padding: 0.28rem 0.56rem;
+            font-size: 0.66rem;
+            font-weight: 750;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
+            margin-bottom: 0.65rem;
+        }
+        .hero-title {
+            color: #f8fafc;
+            font-size: 2.18rem;
+            line-height: 1.08;
+            font-weight: 820;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.45rem;
+        }
+        .hero-copy {
+            color: #b6c2d2;
+            font-size: 0.98rem;
+            line-height: 1.55;
+            max-width: 820px;
+            margin-bottom: 0.8rem;
+        }
+        .hero-chips {
+            display: flex;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+        .hero-chip {
+            color: #cbd5e1;
+            background: rgba(148, 163, 184, 0.075);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 999px;
+            padding: 0.33rem 0.62rem;
+            font-size: 0.73rem;
+        }
+        .top-controls-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.45rem;
+            font-weight: 700;
         }
         .panel {
             background: #0f172a;
@@ -95,9 +227,65 @@ def _inject_styles() -> None:
             padding: 0.75rem;
         }
         @media (max-width: 700px) {
+            .top-nav {
+                align-items: flex-start;
+                gap: 0.7rem;
+            flex-direction: column;
+            }
             .dashboard-title {
                 font-size: 1.55rem;
             }
+            .hero-title {
+                font-size: 1.72rem;
+            }
+            .hero-shell {
+                padding: 1rem;
+            }
+        }
+        .app-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.62rem;
+            min-height: 2.25rem;
+        }
+        .app-brand-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #e0f2fe;
+            font-weight: 800;
+            font-size: 0.78rem;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(34, 197, 94, 0.62));
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.12);
+        }
+        .app-brand-name {
+            color: #f8fafc;
+            font-size: 1rem;
+            font-weight: 750;
+        }
+        div[data-testid="stButton"] button,
+        div[data-testid="stDownloadButton"] button {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.52);
+            color: #cbd5e1;
+            padding: 0.36rem 0.68rem;
+            min-height: 2.05rem;
+            font-size: 0.78rem;
+        }
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stDownloadButton"] button:hover {
+            border-color: rgba(56, 189, 248, 0.36);
+            color: #f8fafc;
+            background: rgba(30, 41, 59, 0.72);
+        }
+        div[data-testid="stDownloadButton"] button:disabled,
+        div[data-testid="stButton"] button:disabled {
+            opacity: 0.52;
+            cursor: not-allowed;
         }
         </style>
         """,
@@ -135,6 +323,233 @@ def _format_symbol_option(match: dict[str, str]) -> str:
     return f"{match['description']} ({match['symbol']})"
 
 
+def _rerun_app() -> None:
+    if hasattr(st, "rerun"):
+        st.rerun()
+    else:
+        st.experimental_rerun()
+
+
+def _render_top_nav(
+    nav_slot,
+    export_data: pd.DataFrame | None = None,
+    export_filename: str = "stock_dashboard_export.csv",
+) -> None:
+    export_csv = export_data.to_csv(index=False).encode("utf-8") if export_data is not None else b""
+    key_suffix = "ready" if export_data is not None else "pending"
+
+    with nav_slot.container():
+        nav_cols = st.columns([4.9, 0.92, 1.22, 0.82, 0.82])
+        with nav_cols[0]:
+            st.markdown(
+                """
+                <div class="brand-wrap">
+                    <div class="brand-mark">MP</div>
+                    <div class="brand-name">MarketPulse</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with nav_cols[1]:
+            if st.button(
+                "Compare",
+                key=f"nav_compare_{key_suffix}",
+                use_container_width=True,
+                help="Jump to the Actual vs Predicted comparison chart.",
+            ):
+                st.session_state["jump_to_prediction_comparison"] = True
+        with nav_cols[2]:
+            if st.button(
+                "Decision Summary",
+                key=f"nav_decision_summary_{key_suffix}",
+                use_container_width=True,
+                help="Jump to the Decision Support Summary section.",
+            ):
+                st.session_state["jump_to_decision_summary"] = True
+        with nav_cols[3]:
+            st.download_button(
+                "Export",
+                data=export_csv,
+                file_name=export_filename,
+                mime="text/csv",
+                key=f"nav_export_{key_suffix}",
+                use_container_width=True,
+                disabled=export_data is None,
+                help="Download the current processed dataset with available technical indicators.",
+            )
+        with nav_cols[4]:
+            if st.button(
+                "Refresh",
+                key=f"nav_refresh_{key_suffix}",
+                use_container_width=True,
+                help="Rerun the current dashboard analysis.",
+            ):
+                _load_prepared_data.clear()
+                _run_models.clear()
+                _search_symbols_cached.clear()
+                _rerun_app()
+        st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
+
+
+def _jump_to_prediction_comparison() -> None:
+    components.html(
+        """
+        <script>
+        const targetId = "prediction-comparison-section";
+        const openComparisonTab = () => {
+            const doc = window.parent.document;
+            const target = doc.getElementById(targetId);
+            const tabs = Array.from(doc.querySelectorAll('[role="tab"]'));
+            const comparisonTab = tabs.find((tab) => tab.innerText.trim().includes("Actual vs Predicted"));
+
+            if (comparisonTab) {
+                comparisonTab.click();
+            }
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        };
+
+        openComparisonTab();
+        </script>
+        """,
+        height=0,
+    )
+
+
+def _jump_to_decision_summary() -> None:
+    components.html(
+        """
+        <script>
+        const scrollToDecisionSummary = () => {
+            const target = window.parent.document.getElementById("decision-summary-section");
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        };
+
+        scrollToDecisionSummary();
+        </script>
+        """,
+        height=0,
+    )
+
+
+def _build_export_data(indicator_data: pd.DataFrame, results: dict, forecasts: dict) -> pd.DataFrame:
+    metric_columns = {}
+    for model_name in ("Baseline", "LSTM"):
+        result = results.get(model_name)
+        prefix = model_name.replace(" ", "_")
+        metric_columns[f"{prefix}_MAE"] = result["metrics"]["mae"] if result else pd.NA
+        metric_columns[f"{prefix}_RMSE"] = result["metrics"]["rmse"] if result else pd.NA
+        metric_columns[f"{prefix}_MAPE"] = result["metrics"]["mape"] if result else pd.NA
+
+    historical = indicator_data.copy()
+    historical["Date"] = pd.to_datetime(historical["Date"])
+    historical["type"] = "historical"
+    historical["Actual_Close"] = historical["Close"]
+    historical["Baseline_Prediction"] = pd.NA
+    historical["LSTM_Prediction"] = pd.NA
+    historical["Baseline_Forecast"] = pd.NA
+    historical["LSTM_Forecast"] = pd.NA
+
+    prediction_frames = []
+    for model_name in ("Baseline", "LSTM"):
+        result = results.get(model_name)
+        if not result:
+            continue
+
+        actual = result["actual"][["Date", "Close"]].copy()
+        predicted = result["predicted"][["Date", "Predicted_Close"]].copy()
+        actual["Date"] = pd.to_datetime(actual["Date"])
+        predicted["Date"] = pd.to_datetime(predicted["Date"])
+        aligned = actual.merge(predicted, on="Date", how="inner").rename(columns={"Close": "Actual_Close"})
+        aligned[f"{model_name}_Prediction"] = aligned["Predicted_Close"]
+        prediction_frames.append(aligned[["Date", "Actual_Close", f"{model_name}_Prediction"]])
+
+    if prediction_frames:
+        predictions = pd.DataFrame({"Date": sorted(set().union(*(set(frame["Date"]) for frame in prediction_frames)))})
+        for frame in prediction_frames:
+            predictions = predictions.merge(frame, on="Date", how="left", suffixes=("", "_next"))
+            if "Actual_Close_next" in predictions.columns:
+                predictions["Actual_Close"] = predictions["Actual_Close"].combine_first(predictions["Actual_Close_next"])
+                predictions = predictions.drop(columns=["Actual_Close_next"])
+        predictions = predictions.sort_values("Date")
+        predictions["type"] = "prediction"
+        predictions["Close"] = predictions["Actual_Close"]
+        predictions["Baseline_Forecast"] = pd.NA
+        predictions["LSTM_Forecast"] = pd.NA
+    else:
+        predictions = pd.DataFrame()
+
+    forecast_frames = []
+    for model_name in ("Baseline", "LSTM"):
+        forecast = forecasts.get(model_name)
+        if forecast is None or forecast.empty:
+            continue
+        frame = forecast[["Date", "Predicted_Close"]].copy()
+        frame["Date"] = pd.to_datetime(frame["Date"])
+        frame[f"{model_name}_Forecast"] = frame["Predicted_Close"]
+        forecast_frames.append(frame[["Date", f"{model_name}_Forecast"]])
+
+    if forecast_frames:
+        future_forecasts = forecast_frames[0]
+        for frame in forecast_frames[1:]:
+            future_forecasts = future_forecasts.merge(frame, on="Date", how="outer")
+        future_forecasts = future_forecasts.sort_values("Date")
+        future_forecasts["type"] = "forecast"
+        future_forecasts["Actual_Close"] = pd.NA
+        future_forecasts["Baseline_Prediction"] = pd.NA
+        future_forecasts["LSTM_Prediction"] = pd.NA
+    else:
+        future_forecasts = pd.DataFrame()
+
+    export_frames = []
+    for frame in (historical, predictions, future_forecasts):
+        if frame.empty:
+            continue
+        cleaned_frame = frame.dropna(axis=1, how="all")
+        if not cleaned_frame.empty:
+            export_frames.append(cleaned_frame)
+    export_data = pd.concat(export_frames, ignore_index=True, sort=False)
+    for column, value in metric_columns.items():
+        export_data[column] = value
+
+    ordered_columns = [
+        "Date",
+        "type",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "SMA",
+        "EMA",
+        "RSI",
+        "MACD",
+        "MACD_Signal",
+        "MACD_Histogram",
+        "Actual_Close",
+        "Baseline_Prediction",
+        "LSTM_Prediction",
+        "Baseline_Forecast",
+        "LSTM_Forecast",
+        "Baseline_MAE",
+        "Baseline_RMSE",
+        "Baseline_MAPE",
+        "LSTM_MAE",
+        "LSTM_RMSE",
+        "LSTM_MAPE",
+    ]
+    for column in ordered_columns:
+        if column not in export_data.columns:
+            export_data[column] = pd.NA
+
+    export_data = export_data[ordered_columns].sort_values(["Date", "type"]).reset_index(drop=True)
+    export_data["Date"] = pd.to_datetime(export_data["Date"]).dt.strftime("%Y-%m-%d")
+    return export_data
+
+
 def _symbol_from_option(option: str) -> str:
     if "(" not in option or ")" not in option:
         return normalize_ticker(option)
@@ -153,6 +568,10 @@ def _render_symbol_search(default_ticker: str) -> str | None:
         )
 
         cleaned_query = query.strip()
+        if not FINNHUB_API_KEY:
+            st.info("Autocomplete unavailable. Enter ticker manually (e.g., AAPL, TSLA)")
+            return normalize_ticker(cleaned_query or default_ticker)
+
         search_query = cleaned_query if len(cleaned_query) >= SEARCH_MIN_LENGTH else SEARCH_DEFAULT_QUERY
         hint = "Suggestions update after 2+ characters." if len(cleaned_query) < SEARCH_MIN_LENGTH else "Suggestions from Finnhub."
 
@@ -296,6 +715,23 @@ def _render_model_comparison(results: dict, summary: dict) -> None:
     st.caption("The future forecast uses only the best available model. RMSE is primary; MAE is used if RMSE is tied.")
 
 
+def _render_prediction_explainer() -> None:
+    st.info(
+        "Baseline is a simple reference model using recent price behavior. "
+        "LSTM is a pattern-based neural model that learns from historical sequences. "
+        "MAE and RMSE measure average prediction error, with lower values indicating better fit. "
+        "Forecasts are indicative decision support, not guaranteed outcomes."
+    )
+
+
+def _render_forecast_disclaimer() -> None:
+    st.warning(
+        "Forecasts shown here are model-based estimates derived from historical market data and technical indicators. "
+        "They are intended for analytical and educational use only, and should not be interpreted as guaranteed outcomes "
+        "or financial advice."
+    )
+
+
 def _render_decision_summary(summary: dict) -> None:
     cols = st.columns(5)
     values = [
@@ -320,23 +756,31 @@ def _render_decision_summary(summary: dict) -> None:
 def main() -> None:
     _inject_styles()
 
-    with st.container():
-        st.markdown(
-            """
-            <div style="padding: 18px 0 14px 0;">
-                <div style="font-size: 40px; line-height: 1.12; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">
-                    Stock Market Analytics
+    nav_slot = st.empty()
+    _render_top_nav(nav_slot)
+
+    st.markdown(
+        """
+        <div class="hero-shell">
+            <div class="hero-content">
+                <div class="hero-eyebrow">MARKET INTELLIGENCE DASHBOARD</div>
+                <div class="hero-title">Stock Market Trend Analysis</div>
+                <div class="hero-copy">
+                    Analyze price action, technical indicators, and short-term forecasts in a clean, chart-first analytics workspace.
                 </div>
-                <div style="font-size: 16px; color: #94a3b8; max-width: 900px;">
-                    Analyze historical trends, technical indicators, and short-term forecasts in one unified dashboard.
+                <div class="hero-chips">
+                    <span class="hero-chip">Historical Analysis</span>
+                    <span class="hero-chip">Technical Indicators</span>
+                    <span class="hero-chip">Forecast Insights</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    st.divider()
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with st.container():
+    with st.container(border=True):
+        st.markdown('<div class="top-controls-label">Analysis Controls</div>', unsafe_allow_html=True)
         control_cols = st.columns([1.9, 0.75, 0.75])
         with control_cols[0]:
             ticker = _render_symbol_search(DEFAULT_TICKER)
@@ -373,6 +817,10 @@ def main() -> None:
     with st.spinner("Comparing models and preparing the best forecast..."):
         results, forecasts, model_warnings = _run_models(indicator_data, forecast_horizon, MODEL_CACHE_VERSION)
 
+    export_filename = f"{ticker}_{start_date.isoformat()}_{end_date.isoformat()}_analysis.csv"
+    export_data = _build_export_data(indicator_data, results, forecasts)
+    _render_top_nav(nav_slot, export_data, export_filename)
+
     for warning in model_warnings:
         st.warning(warning)
 
@@ -384,33 +832,40 @@ def main() -> None:
     _render_overview_cards(ticker, indicator_data, trend, preferred_model, forecast_horizon)
 
     st.markdown('<div class="section-title">Main Historical Chart</div>', unsafe_allow_html=True)
-    st.plotly_chart(create_close_price_chart(indicator_data, ticker), use_container_width=True)
+    st.plotly_chart(create_close_price_chart(indicator_data, ticker), use_container_width=True, config=PLOTLY_CHART_CONFIG)
 
     st.markdown('<div class="section-title">Additional Market Data</div>', unsafe_allow_html=True)
     market_tabs = st.tabs(["Candlestick", "Volume"])
     with market_tabs[0]:
-        st.plotly_chart(create_candlestick_chart(indicator_data, ticker), use_container_width=True)
+        st.plotly_chart(create_candlestick_chart(indicator_data, ticker), use_container_width=True, config=PLOTLY_CHART_CONFIG)
     with market_tabs[1]:
-        st.plotly_chart(create_volume_chart(indicator_data, ticker), use_container_width=True)
+        st.plotly_chart(create_volume_chart(indicator_data, ticker), use_container_width=True, config=PLOTLY_CHART_CONFIG)
 
     st.markdown('<div class="section-title">Technical Indicators</div>', unsafe_allow_html=True)
-    st.plotly_chart(create_indicator_panel(indicator_data, ticker), use_container_width=True)
+    st.plotly_chart(create_indicator_panel(indicator_data, ticker), use_container_width=True, config=PLOTLY_CHART_CONFIG)
 
-    st.markdown('<div class="section-title">Prediction</div>', unsafe_allow_html=True)
+    st.markdown('<div id="prediction-comparison-section"></div><div class="section-title">Prediction</div>', unsafe_allow_html=True)
     if valid_results:
         prediction_tabs = st.tabs(["Model Comparison", "Actual vs Predicted", "Future Forecast"])
         with prediction_tabs[0]:
             _render_model_comparison(results, summary)
         with prediction_tabs[1]:
-            st.plotly_chart(create_prediction_comparison_chart(valid_results), use_container_width=True)
+            st.plotly_chart(create_prediction_comparison_chart(valid_results), use_container_width=True, config=PLOTLY_CHART_CONFIG)
         with prediction_tabs[2]:
-            st.plotly_chart(create_forecast_chart(indicator_data, forecasts, ticker, preferred_model), use_container_width=True)
+            st.plotly_chart(create_forecast_chart(indicator_data, forecasts, ticker, preferred_model), use_container_width=True, config=PLOTLY_CHART_CONFIG)
             _render_prediction_points(summary)
+        _render_prediction_explainer()
+        if st.session_state.pop("jump_to_prediction_comparison", False):
+            _jump_to_prediction_comparison()
     else:
         st.warning("Prediction results are unavailable. Historical charts and technical indicators remain available.")
 
-    st.markdown('<div class="section-title">Decision-Support Summary</div>', unsafe_allow_html=True)
+    _render_forecast_disclaimer()
+
+    st.markdown('<div id="decision-summary-section"></div><div class="section-title">Decision-Support Summary</div>', unsafe_allow_html=True)
     _render_decision_summary(summary)
+    if st.session_state.pop("jump_to_decision_summary", False):
+        _jump_to_decision_summary()
 
 
 if __name__ == "__main__":
